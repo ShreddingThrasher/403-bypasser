@@ -1,4 +1,6 @@
-﻿namespace Bypasser
+﻿using System.IO;
+
+namespace Bypasser
 {
     public static class PayloadGenerator
     {
@@ -75,43 +77,49 @@
             return variations;
         }
 
-        /// <summary>
-        /// Transform the given URL in different variations with a ..; payload.
-        /// </summary>
-        /// <param name="url">Full url to a resource</param>
-        /// <returns>Transformed variations of the url</returns>
-        public static IEnumerable<string> Payload(string requestUrl)
+        public static async Task<IEnumerable<string>> CustomPayload(string payloadsFile, string path)
         {
-            List<string> variations = new List<string>();
+            var payloads = await File.ReadAllLinesAsync(payloadsFile);
 
-            var uri = new Uri(requestUrl);
-            var path = uri.PathAndQuery;
+            var variations = new List<string>();
 
-            for (int i = 0; i < path.Length; i++)
+            var indexes = FindAllCharIndexes(path, '/');
+
+            // before slashes
+            foreach (var i in indexes)
             {
-                if (path[i] == '/')
+                foreach (var payload in payloads)
                 {
-                    // first payload
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _paylod_first)));
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _paylod_first_encoded)));
-
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _paylod_first)));
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _paylod_first_encoded)));
-
-                    variations.Add(requestUrl.Replace(path, path.Insert(i + 1, _paylod_first)));
-                    variations.Add(requestUrl.Replace(path, path.Insert(i + 1, _paylod_first_encoded)));
-
-                    // second payload
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _payload_second)));
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _payload_second_encoded)));
-
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _payload_second)));
-                    variations.Add(requestUrl.Replace(path, "/" + path.Insert(i, _payload_second_encoded)));
+                    variations.Add(path.Insert(i, payload));
                 }
             }
 
-            variations.Add(requestUrl + "/");
-            variations.Add(requestUrl + "..;/");
+            // after slashes
+            foreach (var i in indexes)
+            {
+                foreach (var payload in payloads)
+                {
+                    variations.Add(path.Substring(0, i + 1) + payload + path.Substring(i + 1));
+                }
+            }
+
+            // between slashes
+            foreach (var i in indexes)
+            {
+                foreach (var payload in payloads)
+                {
+                    variations.Add(path.Substring(0, i + 1) + payload + "/" + path.Substring(i + 1));
+                }
+            }
+
+            // at the end of url
+            foreach (var payload in payloads)
+            {
+                variations.Add(path + "/" + payload);
+                variations.Add(path + "/" + payload + "/");
+
+                return variations;
+            }
 
             return variations;
         }

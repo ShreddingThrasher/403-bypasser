@@ -8,6 +8,7 @@ namespace Bypasser
     {
         static bool randomAgent = false;
         static int _timeout = 0;
+        static string _outputPath = "";
 
         static bool success = false;
         static Dictionary<string, string> successRequests = new Dictionary<string, string>();
@@ -24,18 +25,31 @@ namespace Bypasser
             {
                 var uri = new Uri(options.Url);
 
+                if (!string.IsNullOrEmpty(options.Output))
+                {
+                    _outputPath = options.Output;
+                }
+
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Generating payloads...");
+                await Logger.Log("Generating payloads...", _outputPath);
 
                 var payloads = new List<string>();
-                payloads.AddRange(PayloadGenerator.PathTraversal(uri.PathAndQuery));
-                payloads.AddRange(PayloadGenerator.WordCase(uri.PathAndQuery));
-                payloads.AddRange(PayloadGenerator.Encode(uri.PathAndQuery));
+                
+                if (string.IsNullOrEmpty(options.Payloads))
+                {
+                    payloads.AddRange(PayloadGenerator.PathTraversal(uri.PathAndQuery));
+                    payloads.AddRange(PayloadGenerator.WordCase(uri.PathAndQuery));
+                    payloads.AddRange(PayloadGenerator.Encode(uri.PathAndQuery));
+                }
+                else
+                {
+                    payloads.AddRange(await PayloadGenerator.CustomPayload(options.Payloads, uri.PathAndQuery));
+                }
 
                 if (options.DryRun)
                 {
-                    Console.WriteLine($"Generated {payloads.Count} payloads");
-                    payloads.ForEach(v => Console.WriteLine($"    {v}"));
+                    await Logger.Log($"Generated {payloads.Count} payloads", _outputPath);
+                    payloads.ForEach(async v => await Logger.Log($"    {v}", _outputPath));
                     return;
                 }
 
@@ -58,9 +72,8 @@ namespace Bypasser
                 {
                     _timeout = options.Timeout.Value;
                 }
-                // using var httpClient = new HttpClient(handler);
 
-                Console.WriteLine($"Probing {uri.AbsoluteUri} with payloads...");
+                await Logger.Log($"Probing {uri.AbsoluteUri} with payloads...", _outputPath);
 
                 if (!options.SpoofIp)
                 {
@@ -74,7 +87,7 @@ namespace Bypasser
 
                     string statusMessage = "";
 
-                    Console.WriteLine();
+                    await Logger.Log(Environment.NewLine, _outputPath);
 
                     if (success)
                     {
@@ -87,13 +100,13 @@ namespace Bypasser
                         statusMessage = "Couldn't bypass :(";
                     }
 
-                    Console.WriteLine($"Status: {statusMessage}");
+                    await Logger.Log($"Status: {statusMessage}", _outputPath);
 
                     foreach (var item in successRequests)
                     {
-                        Console.WriteLine(item.Key);
-                        Console.WriteLine(item.Value);
-                        Console.WriteLine();
+                        await Logger.Log(item.Key, _outputPath);
+                        await Logger.Log(item.Value, _outputPath);
+                        await Logger.Log(Environment.NewLine, _outputPath);
                     }
                 }
             });
@@ -144,7 +157,7 @@ namespace Bypasser
                         Console.ForegroundColor = ConsoleColor.Green;
                     }
 
-                    Console.WriteLine($"    {displayHost}{payload} {response.StatusCode} {response.StatusMessage}");
+                    await Logger.Log($"    {displayHost}{payload} {response.StatusCode} {response.StatusMessage}", _outputPath);
                     Console.ResetColor();
 
                     if (response.StatusCode == 200)
@@ -156,7 +169,7 @@ namespace Bypasser
                 catch (Exception e)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"{payload} - {e.Message}");
+                    await Logger.Log($"{payload} - {e.Message}", _outputPath);
                     Console.ResetColor();
                 }
 
@@ -194,7 +207,7 @@ namespace Bypasser
                         _ => ConsoleColor.Green
                     };
 
-                    Console.WriteLine($"    {url} {(int)res.StatusCode} {res.StatusCode} ({header.Key}: {header.Value})");
+                    await Logger.Log($"    {url} {(int)res.StatusCode} {res.StatusCode} ({header.Key}: {header.Value})", _outputPath);
                     Console.ResetColor();
 
                     if (res.StatusCode == HttpStatusCode.OK)
@@ -246,13 +259,13 @@ namespace Bypasser
                     _ => ConsoleColor.Green
                 };
 
-                Console.WriteLine($"    {url} {(int)res.StatusCode} {res.StatusCode} ({header.Key}: {header.Value})");
+                await Logger.Log($"    {url} {(int)res.StatusCode} {res.StatusCode} ({header.Key}: {header.Value})", _outputPath);
                 Console.ResetColor();
 
                 if (res.StatusCode == HttpStatusCode.OK)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"Successfully bypassed with: {header.Key}: {header.Value}");
+                    await Logger.Log($"Successfully bypassed with: {header.Key}: {header.Value}", _outputPath);
                     break;
                 }
 
@@ -280,7 +293,7 @@ namespace Bypasser
                     _ => ConsoleColor.Green
                 };
 
-                Console.WriteLine($"    {url} {(int)res.StatusCode} {res.StatusCode} ({method})");
+                await Logger.Log($"    {url} {(int)res.StatusCode} {res.StatusCode} ({method})", _outputPath);
                 Console.ResetColor();
 
                 if (res.StatusCode == HttpStatusCode.OK)
@@ -366,148 +379,10 @@ namespace Bypasser
         {
             Console.WriteLine("==========================================================");
             Console.WriteLine("|                                                        |");
-            Console.WriteLine("|       403 Bypasser - Access Denied? Think Again!       |");
+            Console.WriteLine("|                      403 Bypasser                      |");
             Console.WriteLine("|                                                        |");
             Console.WriteLine("==========================================================");
             Console.WriteLine();
         }
     }
 }
-
-
-//static async Task CheckBypassWithSpoofing(List<string> urls, HttpClient client)
-//{
-//    foreach (var url in urls)
-//    {
-//        bool bypassed = false;
-
-//        for (int stage = 0; stage < 3; stage++)
-//        {
-//            foreach (var ip in SpoofingConstants.IpList)
-//            {
-//                Dictionary<string, string> headers = stage switch
-//                {
-//                    0 => HeadersGenerator.CommonIpHeaders(ip),
-//                    1 => HeadersGenerator.ObscureIpHeaders(ip),
-//                    _ => HeadersGenerator.AllIpHeaders(ip)
-//                };
-
-//                try
-//                {
-//                    var req = RequestConstructor.Create(HttpMethod.Get, url, headers);
-
-//                    var res = await client.SendAsync(req);
-
-//                    Console.ForegroundColor = res.StatusCode switch
-//                    {
-//                        HttpStatusCode.Forbidden => ConsoleColor.Red,
-//                        HttpStatusCode.NotFound => ConsoleColor.Magenta,
-//                        _ => ConsoleColor.Green
-//                    };
-
-//                    Console.WriteLine($"    {url} {(int)res.StatusCode} {res.StatusCode} (Spoofed origin: {ip})");
-//                    Console.ResetColor();
-
-//                    if (res.StatusCode == HttpStatusCode.OK)
-//                    {
-//                        bypassed = true;
-//                        break;
-//                    }
-//                }
-//                catch (Exception e)
-//                {
-//                    Console.ForegroundColor = ConsoleColor.Red;
-//                    Console.WriteLine($"{url} - {e.Message}");
-//                    Console.ResetColor();
-//                }
-//            }
-
-//            if (bypassed) break;
-//        }
-//    }
-//}
-
-//static async Task CheckBypass(List<string> urls, HttpClient client)
-//{
-//    foreach (var url in urls)
-//    {
-//        try
-//        {
-//            var req = RequestConstructor.Create(HttpMethod.Get, url);
-
-//            var res = await client.SendAsync(req);
-
-//            if (res.StatusCode == HttpStatusCode.Forbidden)
-//            {
-//                Console.ForegroundColor = ConsoleColor.Red;
-//            }
-//            else if (res.StatusCode == HttpStatusCode.NotFound)
-//            {
-//                Console.ForegroundColor = ConsoleColor.Magenta;
-//            }
-//            else
-//            {
-//                Console.ForegroundColor = ConsoleColor.Green;
-//            }
-
-//            Console.WriteLine($"    {url} {(int)res.StatusCode} {res.StatusCode}");
-//            Console.ResetColor();
-//        }
-//        catch (Exception e)
-//        {
-//            Console.ForegroundColor = ConsoleColor.Red;
-//            Console.WriteLine($"{url} - {e.Message}");
-//            Console.ResetColor();
-//        }
-//    }
-//}
-
-
-//var options = parseResult.Value;
-
-//var url = options.Url;
-
-//Console.ForegroundColor = ConsoleColor.Green;
-//Console.WriteLine("Generating payloads...");
-
-//var variations = new List<string>();
-//variations.AddRange(PayloadGenerator.Payload(url));
-//variations.AddRange(PayloadGenerator.WordCase(url));
-//variations.AddRange(PayloadGenerator.Encode(url));
-
-//variations.Add("http://localhost/.././..;/.htaccess");
-//variations.Add("http://localhost/.htaccess%00/");
-//variations.Add("http://localhost/.htaccess%00");
-//variations.Add("http://localhost/%2e%2e;.htaccess");
-
-//variations.AddRange(Payload.PathTraversal(url));
-
-//if (options.DryRun)
-//{
-//    Console.WriteLine($"Generated {variations.Count} payloads");
-//    variations.ForEach(v => Console.WriteLine($"    {v}"));
-//    return;
-//}
-
-//using var handler = new HttpClientHandler() { AllowAutoRedirect = false };
-
-//if (!string.IsNullOrEmpty(options.UseProxy))
-//{
-//    var proxy = new WebProxy(options.UseProxy);
-
-//    handler.Proxy = proxy;
-//    handler.UseProxy = true;
-//}
-
-//using var httpClient = new HttpClient(handler);
-
-//Console.WriteLine("Probing target with payloads...");
-
-//if (!options.SpoofIp)
-//{
-//    await CheckBypass(variations, httpClient);
-//}
-//else
-//{
-//    await CheckBypassWithSpoofing(variations, httpClient);
-//}

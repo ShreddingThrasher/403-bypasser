@@ -16,7 +16,7 @@ namespace Bypasser
         [Option('d', "dry", Required = false, HelpText = "Dry run. Only display generated urls with payloads")]
         public bool DryRun { get; set; }
 
-        [Option('o', "output", Required = false, HelpText = "Output file for the result")]
+        [Option('o', "output", Required = false, HelpText = "Output file for the results")]
         public string Output { get; set; }
 
         [Option('r', "random", Required = false, HelpText = "Random user-agent for each request")]
@@ -24,5 +24,8 @@ namespace Bypasser
 
         [Option('t', "timeout", Required = false, HelpText = "Timeout between requests in miliseconds.")]
         public int? Timeout { get; set; }
+
+        [Option("payloads", Required = false, HelpText = "File containing custom URL payloads")]
+        public string Payloads { get; set; } = null!;
     }
 }
