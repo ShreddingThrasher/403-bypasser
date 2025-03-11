@@ -15,7 +15,7 @@ namespace Bypasser
 
         static async Task Main(string[] args)
         {
-            //args = ["-u", "http://localhost/.htaccess", "-s", "-r", "-t", "500"];
+            args = ["-u", "https://connect.oppo.com/js/rem.js", "-s", "-r" ];
 
             PrintBanner();
 
@@ -34,17 +34,17 @@ namespace Bypasser
                 await Logger.Log("Generating payloads...", _outputPath);
 
                 var payloads = new List<string>();
-                
-                if (string.IsNullOrEmpty(options.Payloads))
-                {
-                    payloads.AddRange(PayloadGenerator.PathTraversal(uri.PathAndQuery));
-                    payloads.AddRange(PayloadGenerator.WordCase(uri.PathAndQuery));
-                    payloads.AddRange(PayloadGenerator.Encode(uri.PathAndQuery));
-                }
-                else
-                {
-                    payloads.AddRange(await PayloadGenerator.CustomPayload(options.Payloads, uri.PathAndQuery));
-                }
+
+                //if (string.IsNullOrEmpty(options.Payloads))
+                //{
+                //    payloads.AddRange(PayloadGenerator.PathTraversal(uri.PathAndQuery));
+                //    payloads.AddRange(PayloadGenerator.WordCase(uri.PathAndQuery));
+                //    payloads.AddRange(PayloadGenerator.Encode(uri.PathAndQuery));
+                //}
+                //else
+                //{
+                //    payloads.AddRange(await PayloadGenerator.CustomPayload(options.Payloads, uri.PathAndQuery));
+                //}
 
                 if (options.DryRun)
                 {
